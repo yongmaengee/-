@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Data files (too large for git)
+*.csv
+*.parquet
+*.h5
+*.pkl
+*.npz
+cache/
+
+# Generated plots and outputs
+*.png
+*.jpg
+*.jpeg
+*.pdf
+plot_*.png
+
+# Notebooks checkpoints
+.ipynb_checkpoints/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Claude local config
+.claude/
+
+# OS
+Thumbs.db
