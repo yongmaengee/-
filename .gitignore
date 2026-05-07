@@ -10,13 +10,26 @@ __pycache__/
 venv/
 env/
 
-# Data files (too large for git)
+# Data files (too large for git) — 기본 ignore
 *.csv
 *.parquet
 *.h5
 *.pkl
 *.npz
 cache/
+
+# 예외 (public repo — 데이터 CSV는 제외, 모델 가중치만 동기화)
+!cache/
+!cache/model/
+!cache/model/ria_model.pt
+!cache/weather_daily.parquet
+# RIA / weather CSV는 직접 보관 (라이센스/저작권 보호)
+
+# Secrets
+.env
+.envrc
+*.pem
+*.key
 
 # Generated plots and outputs
 *.png
