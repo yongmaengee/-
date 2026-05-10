@@ -253,7 +253,9 @@ header{height:52px;background:var(--surface);border-bottom:1px solid var(--borde
 .s-btn{padding:8px 18px;border-radius:999px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:13px;font-weight:600;transition:.2s;cursor:default}
 .s-btn.active-bad{border-color:var(--orange);background:rgba(232,114,74,.15);color:var(--orange)}
 .s-btn.active-ok{border-color:var(--teal);background:rgba(91,200,176,.12);color:var(--teal)}
-.viz-grid{display:grid;grid-template-columns:210px 1fr 230px;gap:14px;margin-bottom:24px}
+.content-grid{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start}
+.viz-col{display:flex;flex-direction:column;gap:12px}
+.output-col{display:flex;flex-direction:column;gap:0}
 .viz-panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px}
 .viz-title{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px}
 .fb-row{display:flex;align-items:center;gap:9px;margin-bottom:11px}
@@ -264,7 +266,7 @@ header{height:52px;background:var(--surface);border-bottom:1px solid var(--borde
 .hm-head-cell{font-size:10px;color:var(--muted);text-align:center;padding:2px 0}
 .hm-row{display:grid;grid-template-columns:70px repeat(4,1fr);gap:4px;margin-bottom:4px}
 .hm-rlabel{font-size:10px;color:var(--muted);text-align:right;padding-right:6px;display:flex;align-items:center;justify-content:flex-end}
-.hm-cell{aspect-ratio:1;border-radius:5px;min-width:0}
+.hm-cell{height:32px;border-radius:5px;min-width:0}
 .hm-note{font-size:10px;color:var(--muted);text-align:center;margin-top:8px}
 .ib-row{display:flex;align-items:center;gap:8px;margin-bottom:14px}
 .ib-label{font-size:12px;width:68px;flex-shrink:0;line-height:1.2}
@@ -318,28 +320,31 @@ header{height:52px;background:var(--surface);border-bottom:1px solid var(--borde
     <div class="s-btn" data-s="정상">정상</div>
   </div>
 
-  <div class="section-label">온라인 추론 — 실시간 이탈 감지 × 학습된 가중치</div>
-  <div class="viz-grid">
-    <div class="viz-panel">
-      <div class="viz-title">피처 이탈 벡터</div>
-      <div id="feat-bars"></div>
+  <div class="content-grid">
+    <div class="viz-col">
+      <div class="section-label">온라인 추론 — 이탈 감지 × 가중치</div>
+      <div class="viz-panel">
+        <div class="viz-title">피처 이탈 벡터</div>
+        <div id="feat-bars"></div>
+      </div>
+      <div class="viz-panel">
+        <div class="viz-title">W [FEATURE × ISSUE]</div>
+        <div id="heatmap"></div>
+        <div class="hm-note">셀 밝기 = 가중치 × 이탈량</div>
+      </div>
+      <div class="viz-panel">
+        <div class="viz-title">이슈 활성화</div>
+        <div id="issue-bars"></div>
+      </div>
     </div>
-    <div class="viz-panel">
-      <div class="viz-title">W [FEATURE × ISSUE]</div>
-      <div id="heatmap"></div>
-      <div class="hm-note">셀 밝기 = 가중치 × 이탈량</div>
-    </div>
-    <div class="viz-panel">
-      <div class="viz-title">이슈 활성화</div>
-      <div id="issue-bars"></div>
+    <div class="output-col">
+      <div class="output-header">
+        <div class="section-label" style="margin:0">OUTPUT — 이슈 체크리스트</div>
+        <div class="meta" id="meta"></div>
+      </div>
+      <div id="sites"></div>
     </div>
   </div>
-
-  <div class="output-header">
-    <div class="section-label" style="margin:0">OUTPUT — 이슈 체크리스트</div>
-    <div class="meta" id="meta"></div>
-  </div>
-  <div id="sites"></div>
 
   <div class="bottom">
     <input class="note-inp" id="note" placeholder="추가 메모 (선택)">
