@@ -45,14 +45,10 @@ def ask_runtime_config():
     print("- 키는 코드에 저장하지 않고 현재 터미널 세션 환경변수로만 사용합니다.\n")
 
     if not os.environ.get("KMA_KEY"):
-        use_kma = input("기상청 API로 최신 날씨를 갱신할까요? [y/N]: ").strip().lower()
-        if use_kma in {"y", "yes"}:
-            key = input("KMA_KEY 입력 (빈 값이면 캐시 사용): ").strip()
-            if key:
-                os.environ["KMA_KEY"] = key
-                os.environ["USE_KMA_LIVE"] = "1"
-            else:
-                os.environ.setdefault("USE_KMA_LIVE", "0")
+        key = input("KMA_KEY 입력 (빈 값이면 캐시/mock 사용): ").strip()
+        if key:
+            os.environ["KMA_KEY"] = key
+            os.environ["USE_KMA_LIVE"] = "1"
         else:
             os.environ.setdefault("USE_KMA_LIVE", "0")
     else:
