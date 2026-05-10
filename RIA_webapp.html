@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RIA — Risk Instinct Alert</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Pretendard:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+/* ─── TOKENS ─── */
+:root {
+  --bg:       #0c0f14;
+  --surface:  #131720;
+  --panel:    #1a2030;
+  --border:   #252d3d;
+  --border2:  #2f3a52;
+  --txt:      #e8ecf4;
+  --muted:    #7b8aaa;
+  --accent:   #4af0b0;
+  --accent2:  #3dd6f5;
+  --warn:     #f5a623;
+  --danger:   #f25c5c;
+  --ok:       #4af0b0;
+  --info:     #5b8dee;
+  --mono:     'DM Mono', monospace;
+  --sans:     'Pretendard', sans-serif;
+  --display:  'Space Grotesk', sans-serif;
+  --radius:   10px;
+  --shadow:   0 4px 24px rgba(0,0,0,.45);
+}
+
+/* ─── RESET ─── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body {
+  background: var(--bg);
+  color: var(--txt);
+  font-family: var(--sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+button { cursor: pointer; border: none; background: none; font: inherit; color: inherit; }
+input, select { font: inherit; }
+
+/* ─── LAYOUT ─── */
+.layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  grid-template-rows: 56px 1fr;
+  height: 100vh;
+}
+
+/* ─── TOPBAR ─── */
+.topbar {
+  grid-column: 1/-1;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 16px;
+}
+.topbar-logo {
+  font-family: var(--display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--accent);
+}
+.topbar-logo span { color: var(--txt); opacity: .6; font-weight: 400; font-size: .85rem; margin-left: 8px; }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+.live-badge {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--mono); font-size: .75rem; color: var(--accent);
+}
+.live-badge::before {
+  content: '';
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.8s infinite;
+}
+@keyframes pulse {
+  0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(74,240,176,.5); }
+  50% { opacity: .7; box-shadow: 0 0 0 5px rgba(74,240,176,0); }
+}
+.topbar-time { font-family: var(--mono); font-size: .78rem; color: var(--muted); }
+
+/* ─── SIDEBAR ─── */
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+}
+.sidebar-section-label {
+  font-family: var(--mono);
+  font-size: .65rem;
+  color: var(--muted);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  padding: 10px 20px 4px;
+}
+.sidebar-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 20px;
+  border-radius: 0;
+  font-size: .875rem;
+  color: var(--muted);
+  transition: all .15s;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+}
+.sidebar-item:hover { background: var(--panel); color: var(--txt); }
+.sidebar-item.active {
+  background: rgba(74,240,176,.07);
+  color: var(--accent);
+  border-left-color: var(--accent);
+}
+.sidebar-item .icon { font-size: 1rem; width: 18px; text-align: center; }
+.sidebar-bottom { margin-top: auto; padding: 16px; border-top: 1px solid var(--border); }
+
+/* ─── MAIN ─── */
+.main {
+  overflow-y: auto;
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ─── PAGE HEADER ─── */
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; }
+.page-title { font-family: var(--display); font-size: 1.5rem; font-weight: 700; letter-spacing: -.5px; }
+.page-title small { display: block; font-family: var(--sans); font-size: .8rem; font-weight: 400; color: var(--muted); margin-top: 2px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 9px 18px; border-radius: var(--radius);
+  font-size: .85rem; font-weight: 600;
+  transition: all .15s;
+}
+.btn-primary { background: var(--accent); color: var(--bg); }
+.btn-primary:hover { background: #6ff5c0; }
+.btn-ghost { border: 1px solid var(--border2); color: var(--muted); }
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+.btn-slack { background: #4a154b; color: #fff; }
+.btn-slack:hover { background: #611f64; }
+
+/* ─── SECTION LABEL ─── */
+.section-label {
+  font-family: var(--mono);
+  font-size: .7rem;
+  color: var(--muted);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* ─── PIPELINE ─── */
+.pipeline-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  position: relative;
+}
+.pipeline-row::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: calc(12.5% + 6px); right: calc(12.5% + 6px);
+  height: 1px;
+  background: linear-gradient(90deg, var(--accent) 0%, var(--accent2) 100%);
+  opacity: .25;
+  pointer-events: none;
+}
+.pipeline-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  position: relative;
+  transition: border-color .2s;
+}
+.pipeline-card:hover { border-color: var(--border2); }
+.pipeline-card.highlight { border-color: rgba(74,240,176,.3); }
+.pipeline-card .pcard-tag {
+  font-family: var(--mono); font-size: .65rem;
+  color: var(--muted); text-transform: uppercase; letter-spacing: .1em;
+  margin-bottom: 8px;
+}
+.pipeline-card .pcard-title {
+  font-family: var(--display); font-size: .95rem; font-weight: 700;
+  color: var(--txt); margin-bottom: 6px;
+}
+.pipeline-card .pcard-desc {
+  font-size: .78rem; color: var(--muted); line-height: 1.5;
+}
+.pipeline-card .pcard-badge {
+  position: absolute; top: 12px; right: 12px;
+  font-family: var(--mono); font-size: .65rem;
+  padding: 2px 7px; border-radius: 20px;
+}
+.badge-green { background: rgba(74,240,176,.12); color: var(--accent); border: 1px solid rgba(74,240,176,.2); }
+.badge-blue  { background: rgba(61,214,245,.12); color: var(--accent2); border: 1px solid rgba(61,214,245,.2); }
+.badge-warn  { background: rgba(245,166,35,.12);  color: var(--warn);    border: 1px solid rgba(245,166,35,.2); }
+
+/* ─── SCENARIO BAR ─── */
+.scenario-bar {
+  display: flex; gap: 10px; align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+}
+.scenario-label { font-size: .8rem; color: var(--muted); margin-right: 4px; white-space: nowrap; }
+.scenario-btn {
+  padding: 7px 18px; border-radius: 7px;
+  font-size: .85rem; font-weight: 600;
+  border: 1px solid var(--border2);
+  color: var(--muted);
+  transition: all .15s;
+}
+.scenario-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+.scenario-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.run-btn-wrap { margin-left: auto; display: flex; gap: 8px; }
+
+/* ─── INFERENCE GRID ─── */
+.inference-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr 1fr;
+  gap: 16px;
+}
+
+/* FEATURE VECTOR */
+.feat-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+}
+.feat-card h3 {
+  font-family: var(--mono); font-size: .7rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .1em; margin-bottom: 14px;
+}
+.feat-row { display: flex; flex-direction: column; gap: 10px; }
+.feat-item { display: flex; flex-direction: column; gap: 4px; }
+.feat-name { font-size: .78rem; color: var(--muted); display: flex; justify-content: space-between; }
+.feat-name span { font-family: var(--mono); font-size: .72rem; }
+.feat-bar-bg {
+  height: 6px; background: var(--border); border-radius: 3px; overflow: hidden;
+}
+.feat-bar {
+  height: 100%; border-radius: 3px;
+  transition: width .6s cubic-bezier(.4,0,.2,1);
+}
+
+/* WEIGHT MATRIX */
+.matrix-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+}
+.matrix-card h3 {
+  font-family: var(--mono); font-size: .7rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .1em; margin-bottom: 14px;
+}
+.matrix-wrap { overflow-x: auto; }
+.matrix-table { width: 100%; border-collapse: separate; border-spacing: 3px; }
+.matrix-table th {
+  font-family: var(--mono); font-size: .65rem; color: var(--muted);
+  text-align: center; padding: 4px; font-weight: 400;
+}
+.matrix-table td {
+  width: 46px; height: 38px;
+  border-radius: 5px;
+  text-align: center;
+  font-family: var(--mono); font-size: .68rem;
+  transition: all .4s;
+  cursor: default;
+  position: relative;
+}
+.matrix-table td:hover { transform: scale(1.12); z-index: 2; }
+.matrix-note {
+  font-size: .7rem; color: var(--muted); text-align: center; margin-top: 8px;
+}
+.th-row { writing-mode: horizontal-tb; }
+.th-feat { text-align: right; padding-right: 6px !important; }
+
+/* ISSUE ACTIVATION */
+.issue-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.issue-card h3 {
+  font-family: var(--mono); font-size: .7rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .1em; margin-bottom: 4px;
+}
+.issue-row { display: flex; flex-direction: column; gap: 4px; }
+.issue-label { display: flex; justify-content: space-between; align-items: center; }
+.issue-name { font-size: .82rem; color: var(--txt); }
+.issue-score {
+  font-family: var(--mono); font-size: .88rem; font-weight: 600;
+}
+.issue-score.high { color: var(--danger); }
+.issue-score.mid  { color: var(--warn); }
+.issue-score.low  { color: var(--info); }
+.issue-bar-bg { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.issue-bar { height: 100%; border-radius: 3px; transition: width .7s cubic-bezier(.4,0,.2,1); }
+
+/* OUTPUT CHECKLIST */
+.checklist-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+}
+.checklist-card h3 {
+  font-family: var(--mono); font-size: .7rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .1em; margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.checklist-items { display: flex; flex-direction: column; gap: 6px; }
+.check-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  transition: border-color .15s;
+  animation: fadeIn .4s ease both;
+}
+.check-item:hover { border-color: var(--border2); }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.check-badge {
+  font-size: .68rem; font-weight: 700; padding: 2px 8px; border-radius: 4px;
+  white-space: nowrap; margin-top: 1px;
+}
+.check-badge.danger { background: rgba(242,92,92,.15); color: var(--danger); border: 1px solid rgba(242,92,92,.25); }
+.check-badge.warn   { background: rgba(245,166,35,.12); color: var(--warn); border: 1px solid rgba(245,166,35,.2); }
+.check-text { font-size: .82rem; color: var(--txt); line-height: 1.45; }
+
+/* ─── SLACK PANEL ─── */
+.slack-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.slack-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.slack-header-left { display: flex; align-items: center; gap: 10px; }
+.slack-icon {
+  width: 32px; height: 32px; border-radius: 7px;
+  background: #4a154b;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem;
+}
+.slack-title { font-weight: 700; font-size: .9rem; }
+.slack-subtitle { font-size: .75rem; color: var(--muted); }
+.slack-config {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+.slack-field label { font-size: .72rem; color: var(--muted); display: block; margin-bottom: 4px; }
+.slack-field input, .slack-field select {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 7px 10px;
+  color: var(--txt);
+  font-size: .82rem;
+  outline: none;
+  transition: border-color .15s;
+}
+.slack-field input:focus, .slack-field select:focus { border-color: var(--accent); }
+.slack-field input[type="password"] { font-family: var(--mono); letter-spacing: .1em; }
+.slack-field.full { grid-column: 1/-1; }
+.slack-preview {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-family: var(--mono); font-size: .75rem; color: var(--muted);
+  line-height: 1.6;
+}
+.slack-preview strong { color: var(--accent); }
+.slack-footer { display: flex; gap: 10px; align-items: center; }
+.slack-status { font-size: .75rem; margin-left: auto; }
+.slack-status.ok { color: var(--ok); }
+.slack-status.err { color: var(--danger); }
+.slack-status.sending { color: var(--warn); }
+
+/* ─── C-RPI METER ─── */
+.crpi-grid {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 16px;
+}
+.crpi-meter-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+.crpi-arc-wrap { position: relative; width: 140px; height: 80px; }
+.crpi-arc-svg { width: 140px; height: 80px; }
+.crpi-arc-track { fill: none; stroke: var(--border2); stroke-width: 10; stroke-linecap: round; }
+.crpi-arc-fill  { fill: none; stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset .8s cubic-bezier(.4,0,.2,1), stroke .4s; }
+.crpi-val {
+  position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+  font-family: var(--display); font-size: 1.8rem; font-weight: 700;
+  transition: color .4s;
+  text-align: center; line-height: 1;
+}
+.crpi-grade {
+  font-family: var(--mono); font-size: .75rem; font-weight: 600;
+  padding: 4px 14px; border-radius: 20px;
+  transition: all .4s;
+}
+.crpi-detail { width: 100%; }
+.crpi-detail-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: .75rem;
+}
+.crpi-detail-row:last-child { border-bottom: none; }
+.crpi-feat-name { color: var(--muted); }
+.crpi-feat-val { font-family: var(--mono); }
+
+/* ─── TABS ─── */
+.tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+.tab-btn {
+  padding: 8px 18px; font-size: .85rem; color: var(--muted);
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  transition: all .15s;
+}
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-btn:hover { color: var(--txt); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ─── TOAST ─── */
+.toast-wrap {
+  position: fixed; bottom: 24px; right: 24px;
+  display: flex; flex-direction: column; gap: 8px;
+  z-index: 9999;
+}
+.toast {
+  background: var(--panel);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-size: .82rem;
+  box-shadow: var(--shadow);
+  display: flex; align-items: center; gap: 10px;
+  animation: slideIn .25s ease;
+  min-width: 260px;
+}
+@keyframes slideIn { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: none; } }
+.toast.success { border-color: rgba(74,240,176,.3); }
+.toast.error   { border-color: rgba(242,92,92,.3); }
+
+/* ─── SCROLLBAR ─── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* ─── LOADING OVERLAY ─── */
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid rgba(74,240,176,.2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="topbar-logo">RIA <span>Risk Instinct Alert · v0.1</span></div>
+    <div class="topbar-right">
+      <div class="live-badge">LIVE</div>
+      <div class="topbar-time" id="clock">--:--:--</div>
+    </div>
+  </header>
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar-section-label">분석</div>
+    <div class="sidebar-item active" onclick="setPage('inference')">
+      <span class="icon">🧠</span> 실시간 추론
+    </div>
+    <div class="sidebar-item" onclick="setPage('pipeline')">
+      <span class="icon">🔗</span> 파이프라인
+    </div>
+    <div class="sidebar-section-label">설정</div>
+    <div class="sidebar-item" onclick="setPage('slack')">
+      <span class="icon">💬</span> Slack 알림
+    </div>
+    <div class="sidebar-item" onclick="setPage('model')">
+      <span class="icon">⚙️</span> 모델 설정
+    </div>
+    <div class="sidebar-bottom">
+      <div style="font-size:.72rem; color:var(--muted); line-height:1.6">
+        국토안전관리원<br>건설안전사고 예보 시스템<br>
+        <span style="color:var(--accent)">40,714</span> records · 54 features
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main" id="main-content">
+  </main>
+
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+/* ════════════════════════════════════════
+   STATE
+════════════════════════════════════════ */
+const STATE = {
+  scenario: '집중호우',
+  running: false,
+  slackToken: '',
+  slackChannel: '#시설안전-알림',
+  slackThreshold: 0.6,
+  currentPage: 'inference',
+
+  // 시나리오별 피쳐 이탈 벡터
+  scenarios: {
+    '집중호우': {
+      features: { '강수량 이탈': .92, '누적 초과량': .78, '기온 이탈': .08, '계절 이탈': .35, '풍속 변화율': .14 },
+      weights: [
+        [.9,.7,.3,.8],
+        [.8,.7,.3,.7],
+        [.2,.1,.1,.1],
+        [.4,.5,.2,.3],
+        [.1,.1,.1,.2],
+      ],
+      issues: { '지반침하': .71, '사면붕괴': .64, '구조물 손상': .39, '침수피해': .69 },
+      checks: [
+        {lvl:'danger', text:'하수관 손상 여부 긴급 점검 (30일 누적강수 역치 초과)'},
+        {lvl:'warn',   text:'굴착공사 현장 주변 지표 침하 모니터링'},
+        {lvl:'danger', text:'절토사면 C·D등급 시설물 현장 점검 지시'},
+        {lvl:'warn',   text:'산사면 인접 시설물 배수 상태 확인'},
+        {lvl:'danger', text:'지하공간·지하차도 침수 차단 시스템 가동'},
+        {lvl:'danger', text:'하천 인접 시설물 수위 알림 활성화'},
+        {lvl:'warn',   text:'소규모 취약시설 배수로 점검'},
+      ],
+      crpi: 74,
+    },
+    '장기가뭄·폭염': {
+      features: { '강수량 이탈': .1, '누적 초과량': .3, '기온 이탈': .88, '계절 이탈': .55, '풍속 변화율': .2 },
+      weights: [
+        [.1,.2,.1,.2],
+        [.2,.3,.2,.3],
+        [.9,.8,.6,.4],
+        [.5,.6,.4,.3],
+        [.2,.2,.3,.2],
+      ],
+      issues: { '지반침하': .28, '사면붕괴': .22, '구조물 손상': .76, '침수피해': .11 },
+      checks: [
+        {lvl:'danger', text:'철골 구조물 열팽창 점검 (ATD_7d ≥ 40°C 초과)'},
+        {lvl:'warn',   text:'콘크리트 양생 현장 차양막 설치 확인'},
+        {lvl:'danger', text:'외국인 근로자 폭염 노출 현황 긴급 파악'},
+        {lvl:'warn',   text:'고령 근로자 작업 중단 기준 적용 여부 확인'},
+        {lvl:'danger', text:'고위험 공종(철골/비계) 오전 10시 이후 작업 중단 검토'},
+      ],
+      crpi: 68,
+    },
+    '태풍': {
+      features: { '강수량 이탈': .85, '누적 초과량': .72, '기온 이탈': .2, '계절 이탈': .6, '풍속 변화율': .95 },
+      weights: [
+        [.7,.6,.3,.9],
+        [.7,.6,.3,.8],
+        [.2,.2,.1,.2],
+        [.5,.5,.3,.4],
+        [.9,.8,.5,.6],
+      ],
+      issues: { '지반침하': .58, '사면붕괴': .82, '구조물 손상': .65, '침수피해': .79 },
+      checks: [
+        {lvl:'danger', text:'전국 고소작업 전면 중단 (풍속 9m/s 초과 예상)'},
+        {lvl:'danger', text:'비계 및 가설구조물 긴급 보강 또는 해체'},
+        {lvl:'danger', text:'사면 인접 현장 작업 중단 및 대피 준비'},
+        {lvl:'warn',   text:'타워크레인 운용 기준 확인 및 안전 조치'},
+        {lvl:'danger', text:'침수 취약 시설 사전 통제 구역 설정'},
+        {lvl:'warn',   text:'태풍 경로 인접 현장 24시간 모니터링 체계 가동'},
+      ],
+      crpi: 88,
+    },
+    '정상': {
+      features: { '강수량 이탈': .05, '누적 초과량': .08, '기온 이탈': .06, '계절 이탈': .12, '풍속 변화율': .04 },
+      weights: [
+        [.1,.1,.1,.1],
+        [.1,.1,.1,.1],
+        [.1,.1,.1,.1],
+        [.1,.1,.1,.1],
+        [.1,.1,.1,.1],
+      ],
+      issues: { '지반침하': .12, '사면붕괴': .09, '구조물 손상': .08, '침수피해': .07 },
+      checks: [
+        {lvl:'warn', text:'일반 안전 관리 수칙 유지'},
+        {lvl:'warn', text:'정기 점검 일정 확인'},
+      ],
+      crpi: 18,
+    }
+  }
+};
+
+const FEAT_NAMES = ['강수이탈', '누적초과', '기온이탈', '계절이탈', '풍속변화'];
+const ISSUE_NAMES = ['침하', '사면', '구조물', '침수'];
+
+/* ════════════════════════════════════════
+   ROUTER
+════════════════════════════════════════ */
+function setPage(page) {
+  STATE.currentPage = page;
+  document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+  const idx = ['inference','pipeline','slack','model'].indexOf(page);
+  document.querySelectorAll('.sidebar-item')[idx]?.classList.add('active');
+  renderPage();
+}
+
+function renderPage() {
+  const el = document.getElementById('main-content');
+  switch(STATE.currentPage) {
+    case 'inference': el.innerHTML = renderInference(); bindInference(); break;
+    case 'pipeline':  el.innerHTML = renderPipeline(); break;
+    case 'slack':     el.innerHTML = renderSlack(); bindSlack(); break;
+    case 'model':     el.innerHTML = renderModel(); break;
+  }
+}
+
+/* ════════════════════════════════════════
+   INFERENCE PAGE
+════════════════════════════════════════ */
+function renderInference() {
+  const sc = STATE.scenarios[STATE.scenario];
+  return `
+  <div class="page-header">
+    <div class="page-title">실시간 추론
+      <small>온라인 추론 — 실시간 이탈 감지 × 학습된 가중치</small>
+    </div>
+  </div>
+
+  <!-- 시나리오 선택 -->
+  <div class="scenario-bar">
+    <span class="scenario-label">시나리오 선택</span>
+    ${Object.keys(STATE.scenarios).map(s =>
+      `<button class="scenario-btn ${STATE.scenario===s?'active':''}" onclick="selectScenario('${s}')">${s}</button>`
+    ).join('')}
+    <div class="run-btn-wrap">
+      <button class="btn btn-ghost" onclick="testSlackFromInference()">💬 Slack 테스트</button>
+      <button class="btn btn-primary" id="runBtn" onclick="runInference()">
+        ▶ 추론 실행
+      </button>
+    </div>
+  </div>
+
+  <!-- C-RPI + 추론 그리드 -->
+  <div class="crpi-grid">
+    ${renderCRPI(sc)}
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="section-label">피쳐 이탈 벡터 W[FEATURE × ISSUE] 이슈 활성화</div>
+      <div class="inference-grid">
+        ${renderFeatureVector(sc)}
+        ${renderWeightMatrix(sc)}
+        ${renderIssueActivation(sc)}
+      </div>
+    </div>
+  </div>
+
+  <!-- Output Checklist -->
+  <div class="checklist-card">
+    <h3>OUTPUT <span style="color:var(--accent)">—</span> 이슈 체크리스트</h3>
+    <div class="checklist-items" id="checklistItems">
+      ${sc.checks.map((c,i) => `
+        <div class="check-item" style="animation-delay:${i*60}ms">
+          <span class="check-badge ${c.lvl==='danger'?'danger':'warn'}">${c.lvl==='danger'?'위험':'주의'}</span>
+          <span class="check-text">${c.text}</span>
+        </div>
+      `).join('')}
+    </div>
+  </div>
+  `;
+}
+
+function renderCRPI(sc) {
+  const score = sc.crpi;
+  const pct = score / 100;
+  const r = 60;
+  const circ = Math.PI * r;
+  const offset = circ * (1 - pct);
+  let color, grade, gradeColor, gradeBg;
+  if (score <= 25) { color='#4af0b0'; grade='관심'; gradeColor='#4af0b0'; gradeBg='rgba(74,240,176,.1)'; }
+  else if (score <= 50) { color='#f5e642'; grade='주의'; gradeColor='#f5e642'; gradeBg='rgba(245,230,66,.1)'; }
+  else if (score <= 75) { color='#f5a623'; grade='경계'; gradeColor='#f5a623'; gradeBg='rgba(245,166,35,.1)'; }
+  else { color='#f25c5c'; grade='심각'; gradeColor='#f25c5c'; gradeBg='rgba(242,92,92,.1)'; }
+
+  return `
+  <div class="crpi-meter-card">
+    <div style="font-family:var(--mono);font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;">C-RPI</div>
+    <div class="crpi-arc-wrap">
+      <svg class="crpi-arc-svg" viewBox="0 0 140 80">
+        <path class="crpi-arc-track" d="M 14 74 A 56 56 0 0 1 126 74" />
+        <path class="crpi-arc-fill" d="M 14 74 A 56 56 0 0 1 126 74"
+          stroke="${color}"
+          stroke-dasharray="${circ}"
+          stroke-dashoffset="${offset}"
+        />
+      </svg>
+      <div class="crpi-val" style="color:${color}">${score}</div>
+    </div>
+    <div class="crpi-grade" style="color:${gradeColor};background:${gradeBg};border:1px solid ${gradeColor}33">${grade}</div>
+    <div class="crpi-detail">
+      <div class="crpi-detail-row"><span class="crpi-feat-name">magnitude_score</span><span class="crpi-feat-val" style="color:${color}">${(pct*.35).toFixed(3)}</span></div>
+      <div class="crpi-detail-row"><span class="crpi-feat-name">risk_heat_process</span><span class="crpi-feat-val">${(pct*.20).toFixed(3)}</span></div>
+      <div class="crpi-detail-row"><span class="crpi-feat-name">risk_rain_progress</span><span class="crpi-feat-val">${(pct*.15).toFixed(3)}</span></div>
+      <div class="crpi-detail-row"><span class="crpi-feat-name">risk_cold_concrete</span><span class="crpi-feat-val">${(pct*.10).toFixed(3)}</span></div>
+      <div class="crpi-detail-row"><span class="crpi-feat-name">weather_scale_interact</span><span class="crpi-feat-val">${(pct*.05).toFixed(3)}</span></div>
+    </div>
+  </div>`;
+}
+
+function renderFeatureVector(sc) {
+  const colors = { high: '#f25c5c', mid: '#f5a623', low: '#4af0b0', none: '#5b8dee' };
+  return `
+  <div class="feat-card">
+    <h3>피쳐 이탈 벡터</h3>
+    <div class="feat-row">
+      ${Object.entries(sc.features).map(([name, val]) => {
+        const c = val > .7 ? colors.high : val > .4 ? colors.mid : val > .15 ? colors.none : colors.low;
+        return `
+        <div class="feat-item">
+          <div class="feat-name">${name}<span>${val.toFixed(2)}</span></div>
+          <div class="feat-bar-bg">
+            <div class="feat-bar" style="width:${val*100}%;background:${c}"></div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+function renderWeightMatrix(sc) {
+  const rows = sc.weights;
+  const feats = FEAT_NAMES;
+  const issues = ISSUE_NAMES;
+  // color: high = orange-red, low = teal
+  function cellColor(v) {
+    const r = Math.round(242 + (74-242)*v);
+    const g = Math.round(92 + (240-92)*v);
+    const b = Math.round(92 + (176-92)*v);
+    return `rgb(${r},${g},${b})`;
+  }
+  return `
+  <div class="matrix-card">
+    <h3>W [FEATURE × ISSUE]</h3>
+    <div class="matrix-wrap">
+      <table class="matrix-table">
+        <tr>
+          <th></th>
+          ${issues.map(i=>`<th class="th-row">${i}</th>`).join('')}
+        </tr>
+        ${feats.map((f,fi) => `
+          <tr>
+            <th class="th-feat">${f}</th>
+            ${rows[fi].map(v => {
+              const c = cellColor(v);
+              return `<td style="background:${c}22;color:${c};border:1px solid ${c}33"
+                title="${f} × ${issues[rows[fi].indexOf(v)]}: ${v.toFixed(2)}">${v.toFixed(2)}</td>`;
+            }).join('')}
+          </tr>
+        `).join('')}
+      </table>
+    </div>
+    <div class="matrix-note">셀 밝기 = 가중치 × 이탈량</div>
+  </div>`;
+}
+
+function renderIssueActivation(sc) {
+  return `
+  <div class="issue-card">
+    <h3>이슈 활성화</h3>
+    ${Object.entries(sc.issues).map(([name, val]) => {
+      const cls = val >= .65 ? 'high' : val >= .35 ? 'mid' : 'low';
+      const barColor = val >= .65 ? 'var(--danger)' : val >= .35 ? 'var(--warn)' : 'var(--info)';
+      return `
+      <div class="issue-row">
+        <div class="issue-label">
+          <span class="issue-name">${name}</span>
+          <span class="issue-score ${cls}">${val.toFixed(2)} ${val>=.65?'●':val>=.35?'●':''}</span>
+        </div>
+        <div class="issue-bar-bg">
+          <div class="issue-bar" style="width:${val*100}%;background:${barColor}"></div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function bindInference() {
+  // run inference animation
+}
+
+function selectScenario(s) {
+  STATE.scenario = s;
+  renderPage();
+}
+
+function runInference() {
+  const btn = document.getElementById('runBtn');
+  if (!btn) return;
+  btn.innerHTML = '<div class="spinner"></div> 추론 중...';
+  btn.disabled = true;
+  setTimeout(() => {
+    btn.innerHTML = '▶ 추론 실행';
+    btn.disabled = false;
+    showToast('✅ 추론 완료 — 결과가 업데이트되었습니다', 'success');
+  }, 1200);
+}
+
+function testSlackFromInference() {
+  const sc = STATE.scenarios[STATE.scenario];
+  sendSlackAlert(sc, true);
+}
+
+/* ════════════════════════════════════════
+   PIPELINE PAGE
+════════════════════════════════════════ */
+function renderPipeline() {
+  return `
+  <div class="page-header">
+    <div class="page-title">파이프라인
+      <small>Data → Feature → Model → Output</small>
+    </div>
+  </div>
+
+  <div class="section-label">Data Layer</div>
+  <div class="pipeline-row" style="grid-template-columns:1fr 1fr">
+    <div class="pipeline-card highlight">
+      <div class="pcard-tag">Source A</div>
+      <div class="pcard-badge badge-green">Real-time</div>
+      <div class="pcard-title">기상청 API</div>
+      <div class="pcard-desc">강수량 · 기온 · 풍속 시계열<br>일별 전국 평균 / 시도별 관측소</div>
+    </div>
+    <div class="pipeline-card">
+      <div class="pcard-tag">Source B</div>
+      <div class="pcard-badge badge-blue">Historical</div>
+      <div class="pcard-title">국토안전 빅데이터</div>
+      <div class="pcard-desc">사고이력 · 안전등급 · 시설유형<br>40,714건 × 30컬럼 (2019~2025)</div>
+    </div>
+  </div>
+
+  <div class="section-label" style="margin-top:8px">Feature Engineering Layer</div>
+  <div class="pipeline-row" style="grid-template-columns:repeat(4,1fr)">
+    <div class="pipeline-card">
+      <div class="pcard-tag">Step 1</div>
+      <div class="pcard-title">Lag Feature</div>
+      <div class="pcard-desc">ATD_7d, TSI_3d 등 7일 롤링 기반 누적 스트레스 지표</div>
+    </div>
+    <div class="pipeline-card">
+      <div class="pcard-tag">Step 2</div>
+      <div class="pcard-title">Rolling Stats</div>
+      <div class="pcard-desc">누적강수_7d, 기온변동성_7d, 풍속 이동평균</div>
+    </div>
+    <div class="pipeline-card">
+      <div class="pcard-tag">Step 3</div>
+      <div class="pcard-title">Extreme Flag</div>
+      <div class="pcard-desc">폭염·한파·강수·강풍 연속일수 (임계값 기반 바이너리)</div>
+    </div>
+    <div class="pipeline-card highlight">
+      <div class="pcard-tag">Step 4</div>
+      <div class="pcard-badge badge-warn">Cross</div>
+      <div class="pcard-title">교차 파생변수</div>
+      <div class="pcard-desc">risk_heat_process, risk_rain_progress 등 7개 현장×기상 인터랙션</div>
+    </div>
+  </div>
+
+  <div class="section-label" style="margin-top:8px">Model Layer</div>
+  <div class="pipeline-row" style="grid-template-columns:repeat(3,1fr)">
+    <div class="pipeline-card">
+      <div class="pcard-tag">Baseline</div>
+      <div class="pcard-badge badge-green">완료</div>
+      <div class="pcard-title">XGBoost</div>
+      <div class="pcard-desc">정적 피쳐 기반 중대재해 분류. 빠른 학습, Feature Importance 해석 가능</div>
+    </div>
+    <div class="pipeline-card highlight">
+      <div class="pcard-tag">Main</div>
+      <div class="pcard-badge badge-blue">개발 중</div>
+      <div class="pcard-title">LSTM / Informer</div>
+      <div class="pcard-desc">시계열 시퀀스 학습. 누적 기후 스트레스 패턴 → Risk Score [0,1] 출력</div>
+    </div>
+    <div class="pipeline-card">
+      <div class="pcard-tag">Index</div>
+      <div class="pcard-badge badge-warn">룰 기반</div>
+      <div class="pcard-title">C-RPI 엔진</div>
+      <div class="pcard-desc">7개 교차 파생변수 Min-Max 정규화 후 가중 합산 → 0~100점 위험지수</div>
+    </div>
+  </div>
+
+  <div class="section-label" style="margin-top:8px">Output Layer</div>
+  <div class="pipeline-row" style="grid-template-columns:1fr 1fr">
+    <div class="pipeline-card highlight">
+      <div class="pcard-tag">Output A</div>
+      <div class="pcard-badge badge-green">대시보드</div>
+      <div class="pcard-title">Risk Score Dashboard</div>
+      <div class="pcard-desc">시설유형별 위험도 시각화 / 이슈 체크리스트 자동 생성</div>
+    </div>
+    <div class="pipeline-card">
+      <div class="pcard-tag">Output B</div>
+      <div class="pcard-badge badge-warn">알림</div>
+      <div class="pcard-title">Slack Alert</div>
+      <div class="pcard-desc">임계값 초과 시 현장 채널에 자동 알림 전송 (Slack Webhook / Bot API)</div>
+    </div>
+  </div>
+  `;
+}
+
+/* ════════════════════════════════════════
+   SLACK PAGE
+════════════════════════════════════════ */
+function renderSlack() {
+  const sc = STATE.scenarios[STATE.scenario];
+  const highIssues = Object.entries(sc.issues).filter(([,v])=>v>=STATE.slackThreshold);
+  const previewText = buildSlackMessage(sc);
+
+  return `
+  <div class="page-header">
+    <div class="page-title">Slack 알림 설정
+      <small>임계값 초과 시 자동 알림 · Slack Bot API / Incoming Webhook</small>
+    </div>
+  </div>
+
+  <div class="section-label">연결 설정</div>
+  <div class="slack-panel">
+    <div class="slack-header">
+      <div class="slack-header-left">
+        <div class="slack-icon">💬</div>
+        <div>
+          <div class="slack-title">Slack 알림 연동</div>
+          <div class="slack-subtitle">Bot Token 또는 Incoming Webhook URL 중 하나를 입력하세요</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('bot')">Bot Token</button>
+      <button class="tab-btn" onclick="switchTab('webhook')">Incoming Webhook</button>
+    </div>
+
+    <div class="tab-content active" id="tab-bot">
+      <div class="slack-config">
+        <div class="slack-field full">
+          <label>Bot OAuth Token (xoxb-...)</label>
+          <input type="password" id="slackToken" placeholder="xoxb-your-bot-token-here"
+            value="${STATE.slackToken}"
+            oninput="STATE.slackToken=this.value; updateSlackPreview()">
+        </div>
+        <div class="slack-field">
+          <label>채널 이름</label>
+          <input type="text" id="slackChannel" placeholder="#시설안전-알림"
+            value="${STATE.slackChannel}"
+            oninput="STATE.slackChannel=this.value; updateSlackPreview()">
+        </div>
+        <div class="slack-field">
+          <label>알림 임계값 (이슈 점수 ≥)</label>
+          <input type="number" id="slackThreshold" min="0" max="1" step="0.05"
+            value="${STATE.slackThreshold}"
+            oninput="STATE.slackThreshold=parseFloat(this.value)||0.6; updateSlackPreview()">
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-webhook">
+      <div class="slack-config">
+        <div class="slack-field full">
+          <label>Incoming Webhook URL</label>
+          <input type="password" id="webhookUrl" placeholder="https://hooks.slack.com/services/T.../B.../..."
+            oninput="STATE.webhookUrl=this.value">
+        </div>
+        <div class="slack-field">
+          <label>채널 이름</label>
+          <input type="text" placeholder="#시설안전-알림"
+            value="${STATE.slackChannel}"
+            oninput="STATE.slackChannel=this.value; updateSlackPreview()">
+        </div>
+        <div class="slack-field">
+          <label>알림 임계값</label>
+          <input type="number" min="0" max="1" step="0.05"
+            value="${STATE.slackThreshold}"
+            oninput="STATE.slackThreshold=parseFloat(this.value)||0.6; updateSlackPreview()">
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">메시지 미리보기</div>
+    <div class="slack-preview" id="slackPreview">${previewText}</div>
+
+    <div class="slack-footer">
+      <button class="btn btn-ghost" onclick="testSlackConnection()">🔌 연결 테스트</button>
+      <button class="btn btn-slack" onclick="sendSlackAlert(STATE.scenarios[STATE.scenario], false)">
+        📤 지금 전송
+      </button>
+      <div class="slack-status" id="slackStatus"></div>
+    </div>
+  </div>
+
+  <div class="section-label" style="margin-top:8px">자동 알림 조건</div>
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:18px;display:flex;flex-direction:column;gap:10px">
+    <div style="font-size:.82rem;color:var(--muted);line-height:1.6">
+      아래 조건 중 하나 이상 충족 시 자동으로 Slack 알림을 발송합니다.
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      ${[
+        ['C-RPI ≥ 51 (경계 이상)', true],
+        ['이슈 점수 임계값 초과', true],
+        ['폭염 연속 3일 이상 + 고위험 공종', false],
+        ['강수 연속 3일 이상 + 철골공사', false],
+      ].map(([label, on]) => `
+        <div style="display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px">
+          <div style="width:36px;height:20px;border-radius:10px;background:${on?'var(--accent)':'var(--border2)'};
+            position:relative;cursor:pointer;flex-shrink:0;transition:background .2s"
+            onclick="this.style.background=this.dataset.on==='1'?'var(--border2)':'var(--accent)';this.dataset.on=this.dataset.on==='1'?'0':'1'"
+            data-on="${on?'1':'0'}">
+            <div style="width:16px;height:16px;border-radius:8px;background:#fff;position:absolute;
+              top:2px;${on?'right:2px':'left:2px'};transition:left .2s,right .2s"></div>
+          </div>
+          <span style="font-size:.8rem">${label}</span>
+        </div>
+      `).join('')}
+    </div>
+  </div>
+  `;
+}
+
+function bindSlack() {}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => {
+    b.classList.toggle('active', (i===0&&tab==='bot')||(i===1&&tab==='webhook'));
+  });
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById(`tab-${tab}`)?.classList.add('active');
+}
+
+function buildSlackMessage(sc) {
+  const highIssues = Object.entries(sc.issues).filter(([,v])=>v>=STATE.slackThreshold);
+  const issueStr = highIssues.map(([k,v])=>`${k}(${v.toFixed(2)})`).join(', ');
+  return `<strong>${STATE.slackChannel}</strong>  #시설안전-알림<br>
+🚨 <strong>[RIA 위험 감지]</strong> 시나리오: ${STATE.scenario}<br>
+📊 C-RPI: <strong>${sc.crpi}점</strong> · 등급: ${sc.crpi>75?'심각':sc.crpi>50?'경계':sc.crpi>25?'주의':'관심'}<br>
+⚠️ 위험 감지: ${issueStr || '없음'}<br>
+🕐 ${new Date().toLocaleString('ko-KR')}`;
+}
+
+function updateSlackPreview() {
+  const sc = STATE.scenarios[STATE.scenario];
+  const el = document.getElementById('slackPreview');
+  if (el) el.innerHTML = buildSlackMessage(sc);
+}
+
+async function sendSlackAlert(sc, isTest=false) {
+  const statusEl = document.getElementById('slackStatus');
+  if (statusEl) { statusEl.className='slack-status sending'; statusEl.textContent='전송 중...'; }
+
+  const highIssues = Object.entries(sc.issues).filter(([,v])=>v>=STATE.slackThreshold);
+  const issueStr = highIssues.map(([k,v])=>`${k}(${v.toFixed(2)})`).join(', ');
+
+  // ── Slack Block Kit 메시지 구성 ──────────────────
+  const payload = {
+    channel: STATE.slackChannel,
+    text: `🚨 [RIA 위험 감지] ${STATE.scenario} — C-RPI ${sc.crpi}점`,
+    blocks: [
+      {
+        type: "header",
+        text: { type: "plain_text", text: `🚨 RIA 위험 감지 알림 — ${STATE.scenario}`, emoji: true }
+      },
+      {
+        type: "section",
+        fields: [
+          { type: "mrkdwn", text: `*C-RPI 점수*\n${sc.crpi}점` },
+          { type: "mrkdwn", text: `*위험 등급*\n${sc.crpi>75?'🔴 심각':sc.crpi>50?'🟠 경계':sc.crpi>25?'🟡 주의':'🟢 관심'}` },
+          { type: "mrkdwn", text: `*시나리오*\n${STATE.scenario}` },
+          { type: "mrkdwn", text: `*감지 이슈*\n${issueStr||'없음'}` },
+        ]
+      },
+      {
+        type: "section",
+        text: { type: "mrkdwn", text: `*현장 조치 사항*\n${sc.checks.filter(c=>c.lvl==='danger').map(c=>`• ${c.text}`).join('\n')}` }
+      },
+      { type: "divider" },
+      {
+        type: "context",
+        elements: [{ type: "mrkdwn", text: `RIA System · ${new Date().toLocaleString('ko-KR')}${isTest?' · *테스트 전송*':''}` }]
+      }
+    ]
+  };
+
+  // ── Bot Token 방식 ──────────────────────────────
+  if (STATE.slackToken) {
+    try {
+      const resp = await fetch('https://slack.com/api/chat.postMessage', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Authorization': `Bearer ${STATE.slackToken}`
+        },
+        body: JSON.stringify(payload)
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        if (statusEl) { statusEl.className='slack-status ok'; statusEl.textContent='✅ 전송 완료'; }
+        showToast('💬 Slack 알림 전송 완료!', 'success');
+      } else {
+        throw new Error(data.error || 'Slack API error');
+      }
+    } catch(e) {
+      if (statusEl) { statusEl.className='slack-status err'; statusEl.textContent=`❌ ${e.message}`; }
+      showToast(`❌ Slack 오류: ${e.message}`, 'error');
+    }
+    return;
+  }
+
+  // ── Incoming Webhook 방식 ───────────────────────
+  if (STATE.webhookUrl) {
+    try {
+      await fetch(STATE.webhookUrl, {
+        method: 'POST',
+        body: JSON.stringify({ text: payload.text, blocks: payload.blocks })
+      });
+      if (statusEl) { statusEl.className='slack-status ok'; statusEl.textContent='✅ 전송 완료'; }
+      showToast('💬 Slack 알림 전송 완료!', 'success');
+    } catch(e) {
+      if (statusEl) { statusEl.className='slack-status err'; statusEl.textContent='❌ 전송 실패'; }
+      showToast('❌ Webhook 전송 실패', 'error');
+    }
+    return;
+  }
+
+  // ── 토큰 미입력 ────────────────────────────────
+  showToast('⚠️ Slack Token 또는 Webhook URL을 입력해주세요', 'error');
+  if (statusEl) { statusEl.className='slack-status err'; statusEl.textContent='토큰 미입력'; }
+}
+
+async function testSlackConnection() {
+  if (!STATE.slackToken) { showToast('⚠️ Bot Token을 먼저 입력하세요', 'error'); return; }
+  try {
+    const resp = await fetch('https://slack.com/api/auth.test', {
+      headers: { 'Authorization': `Bearer ${STATE.slackToken}` }
+    });
+    const data = await resp.json();
+    const statusEl = document.getElementById('slackStatus');
+    if (data.ok) {
+      if (statusEl) { statusEl.className='slack-status ok'; statusEl.textContent=`✅ 연결됨 · ${data.user}`; }
+      showToast(`✅ Slack 연결 성공 — ${data.team} / ${data.user}`, 'success');
+    } else {
+      throw new Error(data.error);
+    }
+  } catch(e) {
+    showToast(`❌ 연결 실패: ${e.message}`, 'error');
+  }
+}
+
+/* ════════════════════════════════════════
+   MODEL PAGE
+════════════════════════════════════════ */
+function renderModel() {
+  return `
+  <div class="page-header">
+    <div class="page-title">모델 설정
+      <small>모델 교체 및 가중치 설정</small>
+    </div>
+  </div>
+
+  <div class="section-label">C-RPI 가중치 (합계 = 1.0)</div>
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:20px;display:flex;flex-direction:column;gap:14px">
+    ${[
+      ['magnitude_score', 0.35],
+      ['risk_heat_process', 0.20],
+      ['risk_rain_progress', 0.15],
+      ['risk_wind_scaffold', 0.15],
+      ['risk_cold_concrete', 0.10],
+      ['weather_scale_interact', 0.05],
+    ].map(([name, val]) => `
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="font-family:var(--mono);font-size:.75rem;color:var(--muted);width:200px;flex-shrink:0">${name}</div>
+        <input type="range" min="0" max="1" step="0.01" value="${val}" style="flex:1;accent-color:var(--accent)"
+          oninput="this.nextElementSibling.textContent=parseFloat(this.value).toFixed(2)">
+        <span style="font-family:var(--mono);font-size:.8rem;width:36px;text-align:right">${val.toFixed(2)}</span>
+      </div>
+    `).join('')}
+    <div style="display:flex;justify-content:flex-end;margin-top:4px">
+      <button class="btn btn-primary" onclick="showToast('✅ 가중치 설정이 저장되었습니다','success')">저장</button>
+    </div>
+  </div>
+
+  <div class="section-label" style="margin-top:8px">모델 엔드포인트 설정</div>
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:20px;display:flex;flex-direction:column;gap:12px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">현재 모델</label>
+        <select style="width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:7px 10px;color:var(--txt);font-size:.82rem;outline:none">
+          <option>XGBoost (baseline)</option>
+          <option>LSTM (개발 중)</option>
+          <option>Informer (예정)</option>
+          <option>C-RPI 룰 기반</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">추론 엔드포인트 URL</label>
+        <input type="text" placeholder="http://localhost:8000/predict" style="width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:7px 10px;color:var(--txt);font-size:.82rem;outline:none">
+      </div>
+    </div>
+    <div style="font-size:.78rem;color:var(--muted);line-height:1.7;padding:12px;background:var(--bg);border-radius:8px;font-family:var(--mono)">
+      POST /predict<br>
+      Content-Type: application/json<br><br>
+      { "features": { "ATD_7d": 42.3, "TSI_3d": 18.5, ... } }<br>
+      → { "risk_score": 0.74, "crpi": 74, "grade": "경계", "issues": {...} }
+    </div>
+  </div>
+  `;
+}
+
+/* ════════════════════════════════════════
+   TOAST
+════════════════════════════════════════ */
+function showToast(msg, type='success') {
+  const wrap = document.getElementById('toastWrap');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+/* ════════════════════════════════════════
+   CLOCK
+════════════════════════════════════════ */
+function updateClock() {
+  const el = document.getElementById('clock');
+  if (el) el.textContent = new Date().toLocaleTimeString('ko-KR');
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+/* ════════════════════════════════════════
+   INIT
+════════════════════════════════════════ */
+renderPage();
+</script>
+</body>
+</html>

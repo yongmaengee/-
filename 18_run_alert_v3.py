@@ -12,7 +12,7 @@ import torch
 import torch.nn as nn
 from sklearn.isotonic import IsotonicRegression
 
-ROOT = '/home/nuri5/바탕화면/공모전'
+ROOT = os.path.dirname(os.path.abspath(__file__))
 CACHE = f'{ROOT}/cache'
 
 # ───── 설정 ─────
@@ -230,15 +230,20 @@ def reload_weather():
 reload_weather()
 
 # 캘리브레이션
-ria = pd.read_csv(f'{ROOT}/RIA_최종통합피쳐셋.csv', encoding='utf-8-sig')
-ria['사고일시'] = pd.to_datetime(ria['사고일시'])
-ria['date'] = ria['사고일시'].dt.normalize()
-ria['시간'] = ria['사고일시'].dt.hour
-ria['요일'] = ria['사고일시'].dt.dayofweek
-ria['시간bin'] = pd.cut(ria['시간'], bins=[-1,5,11,17,23], labels=[0,1,2,3]).astype(int)
-ria['공정율_수치'] = ria['공정율_수치'].fillna(50)
-ria['소규모현장'] = ria['소규모현장'].fillna(0).astype(float)
-val_cal = ria[ria['사고일시'] >= pd.Timestamp('2025-01-01')].iloc[::2].reset_index(drop=True)
+ria_path = f'{ROOT}/RIA_최종통합피쳐셋.csv'
+if os.path.exists(ria_path):
+    ria = pd.read_csv(ria_path, encoding='utf-8-sig')
+    ria['사고일시'] = pd.to_datetime(ria['사고일시'])
+    ria['date'] = ria['사고일시'].dt.normalize()
+    ria['시간'] = ria['사고일시'].dt.hour
+    ria['요일'] = ria['사고일시'].dt.dayofweek
+    ria['시간bin'] = pd.cut(ria['시간'], bins=[-1,5,11,17,23], labels=[0,1,2,3]).astype(int)
+    ria['공정율_수치'] = ria['공정율_수치'].fillna(50)
+    ria['소규모현장'] = ria['소규모현장'].fillna(0).astype(float)
+    val_cal = ria[ria['사고일시'] >= pd.Timestamp('2025-01-01')].iloc[::2].reset_index(drop=True)
+else:
+    print(f"[WARN] {ria_path} 없음: raw model score fallback 사용")
+    val_cal = None
 
 def predict_rows(rows):
     HEADS = ['중대재해','다중사상','외국인피해','고령자피해']
@@ -259,18 +264,26 @@ def predict_rows(rows):
             for h in HEADS: out[h].append(torch.sigmoid(logits[h]).numpy())
     return {h: np.concatenate(v) for h, v in out.items()}
 
-cal_preds = predict_rows(val_cal)
-cal_labels = {
-    '중대재해':   val_cal['중대재해'].values,
-    '다중사상':   (val_cal['총재해자'] >= 2).astype(int).values,
-    '외국인피해': (val_cal['외국인재해자'] >= 1).astype(int).values,
-    '고령자피해': (val_cal['고령재해자'] >= 1).astype(int).values,
-}
+class IdentityCalibrator:
+    def predict(self, values):
+        return np.asarray(values, dtype=float)
+
 calibrators, base_rates = {}, {}
-for h in cal_preds:
-    ir = IsotonicRegression(out_of_bounds='clip'); ir.fit(cal_preds[h], cal_labels[h])
-    calibrators[h] = ir
-    base_rates[h] = cal_labels[h].mean()
+if val_cal is not None and len(val_cal):
+    cal_preds = predict_rows(val_cal)
+    cal_labels = {
+        '중대재해':   val_cal['중대재해'].values,
+        '다중사상':   (val_cal['총재해자'] >= 2).astype(int).values,
+        '외국인피해': (val_cal['외국인재해자'] >= 1).astype(int).values,
+        '고령자피해': (val_cal['고령재해자'] >= 1).astype(int).values,
+    }
+    for h in cal_preds:
+        ir = IsotonicRegression(out_of_bounds='clip'); ir.fit(cal_preds[h], cal_labels[h])
+        calibrators[h] = ir
+        base_rates[h] = cal_labels[h].mean()
+else:
+    calibrators = {h: IdentityCalibrator() for h in ['중대재해','다중사상','외국인피해','고령자피해']}
+    base_rates = {'중대재해': 0.041, '다중사상': 0.030, '외국인피해': 0.050, '고령자피해': 0.080}
 
 # ───── KMA fetch + 캐시 갱신 (16과 동일) ─────
 def _f(v):
