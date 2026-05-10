@@ -679,25 +679,27 @@ function renderInference() {
   <div class="crpi-grid">
     ${renderCRPI(sc)}
     <div style="display:flex;flex-direction:column;gap:12px">
-      <div class="section-label">피쳐 이탈 벡터 W[FEATURE × ISSUE] 이슈 활성화</div>
-      <div class="inference-grid">
+      <div class="section-label">피쳐 이탈 벡터 · W[FEATURE × ISSUE] · 이슈 활성화</div>
+      <!-- 피쳐 벡터 + 가중치 행렬 -->
+      <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:16px">
         ${renderFeatureVector(sc)}
         ${renderWeightMatrix(sc)}
-        ${renderIssueActivation(sc)}
       </div>
-    </div>
-  </div>
-
-  <!-- Output Checklist -->
-  <div class="checklist-card">
-    <h3>OUTPUT <span style="color:var(--accent)">—</span> 이슈 체크리스트</h3>
-    <div class="checklist-items" id="checklistItems">
-      ${sc.checks.map((c,i) => `
-        <div class="check-item" style="animation-delay:${i*60}ms">
-          <span class="check-badge ${c.lvl==='danger'?'danger':'warn'}">${c.lvl==='danger'?'위험':'주의'}</span>
-          <span class="check-text">${c.text}</span>
+      <!-- 이슈 활성화 + 체크리스트 (나란히) -->
+      <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:16px;align-items:start">
+        ${renderIssueActivation(sc)}
+        <div class="checklist-card">
+          <h3>OUTPUT <span style="color:var(--accent)">—</span> 이슈 체크리스트</h3>
+          <div class="checklist-items" id="checklistItems">
+            ${sc.checks.map((c,i) => `
+              <div class="check-item" style="animation-delay:${i*60}ms">
+                <span class="check-badge ${c.lvl==='danger'?'danger':'warn'}">${c.lvl==='danger'?'위험':'주의'}</span>
+                <span class="check-text">${c.text}</span>
+              </div>
+            `).join('')}
+          </div>
         </div>
-      `).join('')}
+      </div>
     </div>
   </div>
   `;
