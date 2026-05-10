@@ -192,7 +192,7 @@ def build_slack_message(payload):
             tags.append("소규모현장")
         tag_text = f" ({', '.join(tags)})" if tags else ""
         lines.append("")
-        lines.append(f"▣ *{site['id']}* — 공정율 {site['progress']}% · {site['hour']}시 작업{tag_text}")
+        lines.append(f"▣ *{site['id']}*{tag_text}")
         for cat in enabled_categories:
             actions = [a for a in cat["actions"] if a.get("enabled", True) and a.get("text", "").strip()]
             if not actions:
