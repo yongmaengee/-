@@ -12,7 +12,8 @@
 누적 피처 계산 (강수·기온·풍속 7일 롤링)
     │
     ▼
-피처 이탈 벡터 × W[FEATURE × ISSUE] 가중치 행렬
+Multi-task Encoder-Decoder Transformer (Cross-Attention)
+시계열 기상 윈도우 → 환경 컨텍스트와 Cross-Attention → 이슈별 위험 확률
     │
     ▼
 이슈 활성화 점수 → 환경별 체크리스트 생성
@@ -21,15 +22,16 @@
 리뷰 콘솔 (웹 UI) → Slack 전송
 ```
 
-- **오프라인**: 사고 이력 데이터로 Feature-Issue 가중치 행렬 학습
-- **온라인**: 실시간 기상 → 이탈량 누적 → 행렬 곱 → 이슈 점수 → 체크리스트
+- **오프라인**: 사고 이력 40,714건으로 Encoder-Decoder Transformer 학습 → `cache/model/ria_model.pt`
+- **온라인**: 실시간 기상 → 누적 피처 → 트랜스포머 추론 → 이슈 점수 → 체크리스트
+- **시각화**: W 히트맵은 도메인 지식 기반 정적 행렬 (실제 추론과 별도)
 
 ## 실행
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install pandas numpy matplotlib seaborn scikit-learn pyarrow
+pip install pandas numpy matplotlib seaborn scikit-learn pyarrow torch
 
 python ria_review_server.py
 ```
@@ -71,7 +73,7 @@ export SLACK_WEBHOOK=https://hooks.slack.com/services/...
 | `ria_review_server.py` | 로컬 리뷰 서버 + 웹 UI (메인 진입점) |
 | `18_run_alert_v3.py` | 추론 엔진 — KMA 연동, 피처 계산, 체크리스트 생성 |
 | `RIA_webapp.html` | 정적 데모 페이지 |
-| `13_train_model.py` | 가중치 행렬 학습 |
+| `13_train_model.py` | Transformer 모델 학습 → `cache/model/ria_model.pt` |
 | `14_inference_demo.py` | 추론 파이프라인 단독 실행 |
 | `15_what_if.py` | What-if 시나리오 시뮬레이션 |
 
