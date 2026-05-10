@@ -1,39 +1,92 @@
-# Risk Instinct Alert (RIA)
+# RIA — Risk Instinct Alert
 
-기후 변화와 시설안전 사고의 상관관계를 분석하여, 실시간 기후 조건에서 발생할 만한
-위험 이슈와 체크리스트를 제공하는 시스템.
+기후 이탈량과 시설안전 사고 데이터의 상관관계를 학습해, 실시간 기상 조건에서  
+발생 가능한 위험 이슈와 현장 체크리스트를 자동 생성하는 시스템.
 
-## 개요
+## 구조
 
-- **오프라인 학습**: 기후 피처 × 사고원인 → Feature-Issue 가중치 행렬
-- **온라인 추론**: 실시간 기후 → 이탈량 누적 → 가중치 행렬과 곱 → 이슈 체크리스트
+```
+기상청 API (KMA)
+    │
+    ▼
+누적 피처 계산 (강수·기온·풍속 7일 롤링)
+    │
+    ▼
+피처 이탈 벡터 × W[FEATURE × ISSUE] 가중치 행렬
+    │
+    ▼
+이슈 활성화 점수 → 환경별 체크리스트 생성
+    │
+    ▼
+리뷰 콘솔 (웹 UI) → Slack 전송
+```
 
-핵심 아이디어와 모델 설계는 [`아이디어.md`](아이디어.md), 데이터 분석 결과는
-[`05_summary_insights.md`](05_summary_insights.md)에 정리되어 있다.
+- **오프라인**: 사고 이력 데이터로 Feature-Issue 가중치 행렬 학습
+- **온라인**: 실시간 기상 → 이탈량 누적 → 행렬 곱 → 이슈 점수 → 체크리스트
+
+## 실행
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install pandas numpy matplotlib seaborn scikit-learn pyarrow
+
+python ria_review_server.py
+```
+
+실행 시 KMA API 키와 Slack Webhook URL을 입력하거나 빈 값으로 넘기면  
+캐시/dry-run 모드로 동작한다.
+
+```
+KMA_KEY 입력 (빈 값이면 캐시/mock 사용):
+Slack Webhook URL 입력 (빈 값이면 전송 비활성):
+
+RIA review server: http://127.0.0.1:8765
+```
+
+환경변수로 미리 설정하면 입력 프롬프트를 건너뛴다.
+
+```bash
+export KMA_KEY=...
+export SLACK_WEBHOOK=https://hooks.slack.com/services/...
+```
+
+## 웹 UI
+
+| 경로 | 설명 |
+|---|---|
+| `http://127.0.0.1:8765` | 리뷰 콘솔 — 라이브 데이터, Slack 전송 |
+| `http://127.0.0.1:8765/legacy` | 정적 데모 — 시나리오 선택 방식 |
+
+리뷰 콘솔 구성:
+- **시나리오 감지**: 집중호우·태풍·한파·폭염 등 자동 분류
+- **온라인 추론**: 피처 이탈 벡터 / W 히트맵 / 이슈 활성화 점수
+- **OUTPUT**: 환경유형별 체크리스트 (위험·주의 태그)
+- **Slack 전송**: 웹훅으로 현장 채널에 직접 발송
+
+## 주요 파일
+
+| 파일 | 설명 |
+|---|---|
+| `ria_review_server.py` | 로컬 리뷰 서버 + 웹 UI (메인 진입점) |
+| `18_run_alert_v3.py` | 추론 엔진 — KMA 연동, 피처 계산, 체크리스트 생성 |
+| `RIA_webapp.html` | 정적 데모 페이지 |
+| `13_train_model.py` | 가중치 행렬 학습 |
+| `14_inference_demo.py` | 추론 파이프라인 단독 실행 |
+| `15_what_if.py` | What-if 시나리오 시뮬레이션 |
 
 ## 데이터
 
-- `RIA_최종통합피쳐셋.csv` — 40,714건, 54컬럼, 2019-07 ~ 2025-12 (gitignore 처리, 별도 공유)
-- `national_weather_avg_2019_2026 2.csv` — 전국 평균 기상 데이터 (gitignore)
+- `RIA_최종통합피쳐셋.csv` — 40,714건, 54컬럼, 2019-07 ~ 2025-12 (gitignore, 별도 공유)
+- `national_weather_avg_2019_2026.csv` — 전국 평균 기상 원본 (gitignore)
+- `cache/weather_daily.parquet` — KMA 응답 캐시
 
 ## 분석 스크립트
 
 | 파일 | 설명 |
 |---|---|
-| `01_data_overview.py` | 데이터셋 구조 및 결측·분포 점검 |
+| `01_data_overview.py` | 데이터셋 구조·결측·분포 점검 |
 | `02_weather_seasonal.py` | 월별·계절별 날씨 패턴과 사고율 |
-| `03_cumulative_weather.py` | 누적 강수·풍속 등 누적 피처 분석 |
-| `04_accident_type_sensitivity.py` | 사고유형별 날씨 민감도 (z-score 기반) |
-
-## 산출 문서
-
-- `05_summary_insights.md` — 데이터 품질 진단, 라벨 누수 위험, 모델 설계 권고 종합 리포트
-- `아이디어.md` — RIA 컨셉, Layer 1~3 라벨 설계, Attention 구조
-
-## 환경
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install pandas numpy matplotlib seaborn scikit-learn
-```
+| `03_cumulative_weather.py` | 누적 강수·풍속 피처 분석 |
+| `04_accident_type_sensitivity.py` | 사고유형별 날씨 민감도 (z-score) |
+| `05_summary_insights.md` | 데이터 품질 진단 및 모델 설계 권고 |
