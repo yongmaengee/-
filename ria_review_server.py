@@ -132,27 +132,27 @@ def make_alert_payload():
     today_row = ALERT.get_today()
     today_date = ALERT.pd.Timestamp(today_row["일시"]).normalize()
     cumf = ALERT.compute_cumulative(today_date)
-    evals = [ALERT.evaluate_site(s, cumf, today_date) for s in ALERT.SITES]
+    scenario = ALERT.detect_scenario(cumf)
+    evals = [ALERT.evaluate_env(e, cumf, today_date, scenario) for e in ALERT.ENVIRONMENTS]
 
     fv = _feature_vec(cumf)
     sites = []
     for ev in evals:
-        site = ev["site"]
+        env = ev["env"]
         categories = [
             {"name": cat["name"], "source": cat["source"], "actions": list(cat["actions"])}
             for cat in ev["cats"]
         ]
         sites.append({
-            "id": site["id"], "trade": site["공종"],
-            "progress": site["공정율"], "hour": site["시간"],
-            "small": bool(site["소규모"]), "highRisk": bool(site["고위험"]),
+            "id": env["id"],
+            "highRisk": bool(env["고위험"]),
             "categories": categories,
         })
 
     return {
         "date": str(today_date.date()),
         "weather": cumf,
-        "scenario": _detect_scenario(cumf),
+        "scenario": scenario,
         "features": fv,
         "matrix": _w_matrix(fv),
         "issueScores": _issue_scores(evals),
@@ -429,10 +429,7 @@ function renderSites(){
     return;
   }
   document.getElementById('sites').innerHTML=triggered.map(site=>{
-    const chips=[
-      site.highRisk?'<span class="chip chip-danger">고위험공종</span>':'',
-      site.small?'<span class="chip chip-warn">소규모현장</span>':'',
-    ].join('');
+    const chips=site.highRisk?'<span class="chip chip-danger">고위험 환경</span>':'';
     const items=site.categories.flatMap(cat=>
       cat.actions.filter(a=>a.enabled!==false).map(a=>{
         const sev=cat.source==='model'?'danger':'warn';
@@ -446,7 +443,6 @@ function renderSites(){
     return `<div class="site-card">
       <div class="site-head">
         <span class="site-name">${site.id}</span>
-        <span class="site-meta">${site.trade} · 공정율 ${site.progress}% · ${site.hour}시</span>
         ${chips}
       </div>${items}</div>`;
   }).join('');

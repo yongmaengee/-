@@ -27,15 +27,34 @@ SIDO_PLACEHOLDER = '경기도'
 
 ALERT_LIFT_THRESHOLD = 1.5
 
-# 모니터링 현장 (지역 X, 공종 중심)
-SITES = [
-    {'id': '철근콘크리트 현장', '공종': '철근콘크리트공사',  '공정율': 50, '시간': 14, '소규모': 0, '고위험': 0},
-    {'id': '토공 현장',         '공종': '토공사',             '공정율': 30, '시간': 10, '소규모': 0, '고위험': 0},
-    {'id': '철골 고소작업 현장', '공종': '철골공사',           '공정율': 70, '시간': 9,  '소규모': 0, '고위험': 1},
-    {'id': '해체·철거 현장',     '공종': '해체 및 철거공사',  '공정율': 80, '시간': 13, '소규모': 0, '고위험': 1},
-    {'id': '도장 마감 현장',     '공종': '도장공사',           '공정율': 90, '시간': 14, '소규모': 1, '고위험': 0},
-    {'id': '기계설비 현장',     '공종': '기계설비공사',       '공정율': 60, '시간': 11, '소규모': 0, '고위험': 0},
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 추상 환경 타입 — 특정 공종 대신 작업 환경으로 분류
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ENVIRONMENTS = [
+    {'id': '야외 굴착·토공',   '공종_proxy': '토공사',           '고위험': 0},
+    {'id': '고소·구조물 작업', '공종_proxy': '철골공사',         '고위험': 1},
+    {'id': '지하·밀폐 공간',   '공종_proxy': '기계설비공사',     '고위험': 0},
+    {'id': '다중 혼재 작업',   '공종_proxy': '철근콘크리트공사', '고위험': 0},
+    {'id': '마감·설비·전기',   '공종_proxy': '도장공사',         '고위험': 0},
+    {'id': '해체·철거',        '공종_proxy': '해체 및 철거공사', '고위험': 1},
 ]
+
+# 모델 추론용 대표 파라미터 (공종_proxy 기반)
+ENV_MODEL_PARAMS = {
+    '야외 굴착·토공':   {'공정율': 50, '시간': 10, '소규모': 0},
+    '고소·구조물 작업': {'공정율': 70, '시간': 9,  '소규모': 0},
+    '지하·밀폐 공간':   {'공정율': 60, '시간': 11, '소규모': 0},
+    '다중 혼재 작업':   {'공정율': 50, '시간': 14, '소규모': 0},
+    '마감·설비·전기':   {'공정율': 90, '시간': 14, '소규모': 1},
+    '해체·철거':        {'공정율': 80, '시간': 13, '소규모': 0},
+}
+
+def detect_scenario(cumf):
+    if cumf['누적강수_7d'] >= 80 or cumf['강수_연속_7d'] >= 3: return '집중호우'
+    if cumf['폭염_연속_7d'] >= 2:  return '장기가뭄·폭염'
+    if cumf['풍속'] >= 6:           return '태풍'
+    if cumf['한파_연속_7d'] >= 2:  return '한파'
+    return '정상'
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 위험 카테고리 매핑 — (모델 헤드, 공종) → 카테고리명
@@ -151,39 +170,115 @@ ACTIONS_BY_CATEGORY = {
     ],
 }
 
-# 룰 기반 (이미 카테고리 형태) — 이름 + 액션
-RULES = [
-    ('철골 강수누적 추락 위험',
-     lambda r: r['공종'] == '철골공사' and r['강수_연속_7d'] >= 3,
-     ['비계 결로·미끄럼 점검', '안전대 이중걸이 확인', '고소작업 2인 1조 운영']),
-    ('토공 폭염누적 사면 위험',
-     lambda r: r['공종'] == '토공사' and r['폭염_연속_7d'] >= 2,
-     ['사면 균열·지반 약화 점검', '옥외작업 시간대 조정', '작업자 탈수·열탈진 증상 확인']),
-    ('굴착 강수누적 붕괴 위험',
-     lambda r: r['공종'] == '기타' and r['누적강수_7d'] >= 100,
-     ['굴착면·법면 안정성 점검', '배수로 점검', '지반 변위 모니터링']),
-    ('철골 한파 동결 위험',
-     lambda r: r['공종'] == '철골공사' and r['최저기온'] <= -5,
-     ['용접부 강재 취성 점검', '안전대·생명줄 결빙 확인', '작업발판 결빙 제거']),
-    ('토공 강수누적 사면 위험',
-     lambda r: r['공종'] == '토공사' and r['강수_연속_7d'] >= 3,
-     ['사면 변위 모니터링', '굴착 깊이 일시 축소', '지반 함수율 측정']),
-    ('기계설비 강수누적 누전 위험',
-     lambda r: r['공종'] == '기계설비공사' and r['누적강수_7d'] >= 100,
-     ['누전차단기 동작 시험', '접지선 체결 확인', '임시전기 습기 보호 커버 부착']),
-    ('토공 한파 동결-융해 위험',
-     lambda r: r['공종'] == '토공사' and r['최저기온'] <= -5,
-     ['동결-융해 사면 점검', '결빙 진입로 제염', '굴착면 모니터링']),
-    ('철골 누적강수 비계침하 위험',
-     lambda r: r['공종'] == '철골공사' and r['누적강수_7d'] >= 100,
-     ['비계 침하 점검', '결로 발판 미끄럼 방지', '체결부 부식 확인']),
-    ('해체철거 기온변동 응력 위험',
-     lambda r: r['공종'] == '해체 및 철거공사' and r['기온변동성_7d'] >= 4,
-     ['구조물 응력 모니터링', '단계 해체 속도 조절', '비상 대피로 확보']),
-    ('철근콘크리트 강풍 비산 위험',
-     lambda r: r['공종'] == '철근콘크리트공사' and r['풍속'] >= 4,
-     ['거푸집·자재 결박 점검', '고소 자재 비산 방지', '양생 시트 보강']),
-]
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 날씨 시나리오 × 환경 타입 → 주요 이슈 (선언적 테이블)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ENV_SCENARIO_ACTIONS = {
+    # ── 야외 굴착·토공 ────────────────────────────
+    ('야외 굴착·토공', '집중호우'): [
+        {'name': '사면·굴착면 붕괴', 'actions': [
+            '사면 균열·용수 즉시 점검', '굴착면 배수로·집수정 확인', '강우 지속 시 작업 중단 검토']},
+        {'name': '중장비 동선 위험', 'actions': [
+            '중장비 회전반경 내 접근 통제', '진입로 노면 침하·미끄럼 점검']},
+    ],
+    ('야외 굴착·토공', '장기가뭄·폭염'): [
+        {'name': '지반건조균열·열탈진', 'actions': [
+            '굴착면 건조균열 현황 확인', '10~15시 옥외 작업 중단 검토', '시간당 10분 휴식·음용수 확보']},
+    ],
+    ('야외 굴착·토공', '태풍'): [
+        {'name': '가시설·흙막이 변형', 'actions': [
+            '흙막이 버팀재·앵커 체결 점검', '임시 자재·가시설 결속 강화', '강풍 시 굴착 구간 출입 통제']},
+    ],
+    ('야외 굴착·토공', '한파'): [
+        {'name': '동결융해 사면 불안정', 'actions': [
+            '동결-융해 구간 사면 안정성 확인', '진입로 결빙 제염', '장비 저온 유압·오일 점검']},
+    ],
+    # ── 고소·구조물 작업 ──────────────────────────
+    ('고소·구조물 작업', '집중호우'): [
+        {'name': '발판·안전대 결로·미끄럼', 'actions': [
+            '비계·작업발판 결로 미끄럼 방지 조치', '안전대 이중걸이·생명줄 재확인', '강우 시 고소작업 중단 기준 공지']},
+    ],
+    ('고소·구조물 작업', '장기가뭄·폭염'): [
+        {'name': '고소 작업자 열탈진', 'actions': [
+            '고소 연속 작업 30분 초과 제한', '열탈진 증상 모니터링 및 교대', '냉각용품 지급']},
+    ],
+    ('고소·구조물 작업', '태풍'): [
+        {'name': '추락·비산물 충돌', 'actions': [
+            '순간풍속 10m/s 초과 시 고소작업 즉시 중단', '발판 위 자재 고정·낙하물 방지망 점검', '양중 작업 중지 및 장비 고정']},
+    ],
+    ('고소·구조물 작업', '한파'): [
+        {'name': '발판 결빙·강재 취성', 'actions': [
+            '발판·계단 결빙 제거', '강재 접합부·용접부 취성 점검', '안전대 버클 결빙 확인']},
+    ],
+    # ── 지하·밀폐 공간 ────────────────────────────
+    ('지하·밀폐 공간', '집중호우'): [
+        {'name': '침수·산소결핍', 'actions': [
+            '배수펌프 작동 상태 확인', '침수 감지 경보 장치 점검', '비상 대피로 침수 여부 확인']},
+    ],
+    ('지하·밀폐 공간', '장기가뭄·폭염'): [
+        {'name': '열기 집적·환기 부족', 'actions': [
+            '환기팬 작동 및 산소농도 측정', '작업자 체온 모니터링·교대', '냉방·공기순환 장비 추가 검토']},
+    ],
+    ('지하·밀폐 공간', '태풍'): [
+        {'name': '진동·균열 구조 위험', 'actions': [
+            '지하 구조물 균열·침하 징후 점검', '지상 낙하물 진입로 차단 확인', '비상 대피 신호 체계 확인']},
+    ],
+    ('지하·밀폐 공간', '한파'): [
+        {'name': '설비 동결·배관 파열', 'actions': [
+            '동결 우려 배관·밸브 보온 확인', '임시 난방 장치 CO 농도 모니터링', '지하 작업자 방한용품 착용 확인']},
+    ],
+    # ── 다중 혼재 작업 ────────────────────────────
+    ('다중 혼재 작업', '집중호우'): [
+        {'name': '혼재 구역 동시 사고 확산', 'actions': [
+            '공종별 작업 구역 우선순위 재조정', '비상 집결지·대피 동선 전 공종 공지', '상하부 동시 작업 중단 검토']},
+    ],
+    ('다중 혼재 작업', '장기가뭄·폭염'): [
+        {'name': '집단 열탈진·작업 혼선', 'actions': [
+            '공종별 교대 휴식 스케줄 조정', '혼재 구역 안전관리자 상주', '고위험 공종 우선 철수']},
+    ],
+    ('다중 혼재 작업', '태풍'): [
+        {'name': '대피 혼잡·다중 피해', 'actions': [
+            '전 공종 동시 대피 훈련 실시', '혼재 구역 자재 결속 긴급 실시', '신호수 배치로 대피 동선 통제']},
+    ],
+    ('다중 혼재 작업', '한파'): [
+        {'name': '방한복 착용 작업 부주의', 'actions': [
+            '방한복 착용 상태 작업 범위 재점검', '공종 간 신호 체계 명확화', '고령·외국인 방한용품 지급 확인']},
+    ],
+    # ── 마감·설비·전기 ────────────────────────────
+    ('마감·설비·전기', '집중호우'): [
+        {'name': '누전·감전 위험', 'actions': [
+            '분전반 누전차단기 동작 시험', '접지선·케이블 피복 손상 확인', '습기 노출 전선 보호 커버 부착']},
+    ],
+    ('마감·설비·전기', '장기가뭄·폭염'): [
+        {'name': '자재 열변형·화재', 'actions': [
+            '인화성 자재 직사광선 차단 보관', '용접·절단 작업 화재 감시자 배치', '소화기 위치 재확인']},
+    ],
+    ('마감·설비·전기', '태풍'): [
+        {'name': '마감 자재 비산·낙하', 'actions': [
+            '외벽·지붕 마감 자재 결속 긴급 점검', '임시 가설물 고정 확인', '강풍 시 외부 작업 즉시 중단']},
+    ],
+    ('마감·설비·전기', '한파'): [
+        {'name': '배관 동결·작업 안전 저하', 'actions': [
+            '동결 우려 배관 보온재·열선 확인', '저온 환경 도장 품질 기준 재확인', '손발 감각 둔화 추락 주의']},
+    ],
+    # ── 해체·철거 ─────────────────────────────────
+    ('해체·철거', '집중호우'): [
+        {'name': '구조물 약화·붕괴', 'actions': [
+            '강수로 약화된 잔존 구조물 안정성 점검', '해체 순서 재검토 및 임시 지지재 보강', '낙하물 방호 구역 재설정']},
+    ],
+    ('해체·철거', '장기가뭄·폭염'): [
+        {'name': '분진 다량 발생·작업자 부담', 'actions': [
+            '해체 전 살수 실시', '방진마스크 착용 의무화', '폭염 시 해체 작업 시간대 조정']},
+    ],
+    ('해체·철거', '태풍'): [
+        {'name': '해체 구조물 붕괴 가속', 'actions': [
+            '태풍 전 해체 예정 구조물 임시 보강', '출입 통제선 확대', '강풍 시 해체 작업 즉시 중단']},
+    ],
+    ('해체·철거', '한파'): [
+        {'name': '구조물 응력 변화·취성', 'actions': [
+            '동결-융해 반복으로 약화된 접합부 점검', '해체 속도 조절·단계별 안정 확인', '비상 대피로 결빙 제거']},
+    ],
+}
 
 # ───── 모델 + 캘리브레이션 + 캐시 ─────
 ckpt = torch.load(f'{CACHE}/model/ria_model.pt', weights_only=False)
@@ -283,7 +378,8 @@ if val_cal is not None and len(val_cal):
         base_rates[h] = cal_labels[h].mean()
 else:
     calibrators = {h: IdentityCalibrator() for h in ['중대재해','다중사상','외국인피해','고령자피해']}
-    base_rates = {'중대재해': 0.041, '다중사상': 0.030, '외국인피해': 0.050, '고령자피해': 0.080}
+    # CSV 없을 때 raw sigmoid 기준점은 0.5 (캘리브레이션 없이 실제 발생률과 비교 불가)
+    base_rates = {'중대재해': 0.5, '다중사상': 0.5, '외국인피해': 0.5, '고령자피해': 0.5}
 
 # ───── KMA fetch + 캐시 갱신 (16과 동일) ─────
 def _f(v):
@@ -388,57 +484,48 @@ def compute_cumulative(end_date):
         '기온변동성_7d': float(win7['평균기온(°C)'].std()),
     }
 
-def evaluate_site(site, cumf, today_date):
+def evaluate_env(env, cumf, today_date, scenario):
+    # 1) 날씨 시나리오 기반 선언적 이슈 (정상이면 빈 리스트)
+    cats = [dict(c, source='rule') for c in ENV_SCENARIO_ACTIONS.get((env['id'], scenario), [])]
+    seen_actions = {a for c in cats for a in c['actions']}
+
+    # 2) 모델 추론 (공종_proxy 사용)
+    params = ENV_MODEL_PARAMS[env['id']]
     end = pd.Timestamp(today_date)
-    rule_row = {**cumf, '공종': site['공종']}
     row = pd.Series({
         'date': end, '시도구분': SIDO_PLACEHOLDER, '공사대분류': '건축',
-        '공종(소분류)': site['공종'], '시간': site['시간'], '요일': end.dayofweek,
-        '시간bin': int(pd.cut([site['시간']], bins=[-1,5,11,17,23], labels=[0,1,2,3])[0]),
-        '공정율_수치': site['공정율'], '소규모현장': float(site['소규모']),
-        '고위험공종': float(site['고위험']),
+        '공종(소분류)': env['공종_proxy'], '시간': params['시간'], '요일': end.dayofweek,
+        '시간bin': int(pd.cut([params['시간']], bins=[-1,5,11,17,23], labels=[0,1,2,3])[0]),
+        '공정율_수치': params['공정율'], '소규모현장': float(params['소규모']),
+        '고위험공종': float(env['고위험']),
     })
     pred_raw = predict_rows(row.to_frame().T)
     pred = {h: float(calibrators[h].predict([pred_raw[h][0]])[0]) for h in pred_raw}
 
-    # 카테고리 수집 (룰 + 모델)
-    cats = []
-    seen_actions = set()
-
-    # 1) 룰 카테고리 (deterministic)
-    for rule_name, cond, actions in RULES:
-        if cond(rule_row):
-            new_actions = [a for a in actions if a not in seen_actions]
-            for a in new_actions: seen_actions.add(a)
-            cats.append({'name': rule_name, 'source': 'rule', 'actions': new_actions, 'sort_key': 0})
-
-    # 2) 모델 카테고리 (Lift ≥ 1.5인 헤드만)
+    # 3) 모델 카테고리 (Lift ≥ 임계값인 헤드만 추가)
     for head in ['중대재해', '다중사상', '외국인피해', '고령자피해']:
         v = pred[head]
         lift = v / max(base_rates[head], 1e-9)
         if lift < ALERT_LIFT_THRESHOLD:
             continue
-        cat_name = (RISK_CATEGORIES.get((head, site['공종']))
+        cat_name = (RISK_CATEGORIES.get((head, env['공종_proxy']))
                     or RISK_CATEGORIES.get((head, '*')))
         if not cat_name:
             continue
-        actions = ACTIONS_BY_CATEGORY.get(cat_name, [])
-        new_actions = [a for a in actions if a not in seen_actions]
+        new_actions = [a for a in ACTIONS_BY_CATEGORY.get(cat_name, []) if a not in seen_actions]
         for a in new_actions: seen_actions.add(a)
-        if new_actions:  # 액션이 모두 중복이면 카테고리 생략
-            cats.append({'name': cat_name, 'source': 'model', 'actions': new_actions,
-                         'sort_key': -lift})
+        if new_actions:
+            cats.append({'name': cat_name, 'source': 'model', 'actions': new_actions})
 
-    cats.sort(key=lambda c: c['sort_key'])
-    return {'site': site, 'pred': pred, 'cats': cats}
+    return {'env': env, 'pred': pred, 'cats': cats}
 
-# ───── 체크리스트 메시지 (Lift 노출 X) ─────
-def format_checklist(today_date, cumf, evals):
+# ───── 체크리스트 메시지 ─────
+def format_checklist(today_date, cumf, scenario, evals):
     today_str = pd.Timestamp(today_date).strftime('%Y-%m-%d (%a)')
     lines = []
     lines.append(f"🚨 *RIA Risk Instinct Alert — {today_str}*")
     lines.append("")
-    lines.append(f"🌤️ *오늘의 전국 기상*")
+    lines.append(f"🌤️ *오늘의 기상* — _{scenario}_")
     lines.append(f"   • 평균 {cumf['평균기온']:.1f}°C  /  최고 {cumf['최고기온']:.1f}  /  최저 {cumf['최저기온']:.1f}")
     delta_sign = '+' if cumf['Δtavg'] >= 0 else ''
     lines.append(f"   • 평년편차 {delta_sign}{cumf['Δtavg']:.1f}°C  /  강수 {cumf['일강수량']:.1f}mm  /  풍속 {cumf['풍속']:.1f}m/s")
@@ -450,27 +537,20 @@ def format_checklist(today_date, cumf, evals):
     if cumul_parts:
         lines.append(f"   • 7일 누적: {' · '.join(cumul_parts)}")
     lines.append("")
-    lines.append(f"📋 *오늘의 안전 이슈 체크리스트*")
+    lines.append(f"📋 *환경별 이슈 체크리스트*")
     lines.append("")
 
     triggered = [ev for ev in evals if ev['cats']]
     if not triggered:
-        lines.append("   _오늘은 모든 공종이 안정 범위입니다._")
+        lines.append("   _오늘은 주요 위험 신호 없음 (정상 범위)_")
         return '\n'.join(lines)
 
-    # 매그니튜드 큰 현장 먼저 (sort_key 합)
-    triggered.sort(key=lambda ev: min(c['sort_key'] for c in ev['cats']))
-
     for ev in triggered:
-        site = ev['site']
-        tags = []
-        if site['고위험']:  tags.append('🟥 고위험공종')
-        if site['소규모']:  tags.append('🟨 소규모현장')
-        tag_str = '   ' + '  '.join(tags) if tags else ''
+        env = ev['env']
+        tag_str = '   🟥 고위험' if env['고위험'] else ''
         lines.append(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        lines.append(f"▣ *{site['id']}*   _공정율 {site['공정율']}% · {site['시간']}시 작업_{tag_str}")
+        lines.append(f"▣ *{env['id']}*{tag_str}")
         lines.append("")
-
         for cat in ev['cats']:
             icon = '🔴' if cat['source'] == 'model' else '🟡'
             lines.append(f"   {icon} *{cat['name']}*")
@@ -479,7 +559,7 @@ def format_checklist(today_date, cumf, evals):
             lines.append("")
 
     lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    lines.append("_🔴 모델 신호  ·  🟡 룰 활성  ·  체크 항목은 작업 전 안전미팅에서 확인_")
+    lines.append("_🔴 모델 신호  ·  🟡 날씨 룰  ·  체크 항목은 작업 전 안전미팅에서 확인_")
     return '\n'.join(lines)
 
 def send_slack(message):
@@ -501,10 +581,11 @@ def run():
     today_row = get_today()
     today_date = pd.Timestamp(today_row['일시']).normalize()
     cumf = compute_cumulative(today_date)
-    print(f"\n오늘 = {today_date.date()},  평균 {cumf['평균기온']:.1f}°C,  Δtavg {cumf['Δtavg']:+.1f}°C")
+    scenario = detect_scenario(cumf)
+    print(f"\n오늘 = {today_date.date()},  시나리오: {scenario},  평균 {cumf['평균기온']:.1f}°C,  Δtavg {cumf['Δtavg']:+.1f}°C")
 
-    evals = [evaluate_site(s, cumf, today_date) for s in SITES]
-    msg = format_checklist(today_date, cumf, evals)
+    evals = [evaluate_env(e, cumf, today_date, scenario) for e in ENVIRONMENTS]
+    msg = format_checklist(today_date, cumf, scenario, evals)
     print("\n" + "─" * 80)
     print(msg)
     print("─" * 80)
