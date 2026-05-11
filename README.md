@@ -92,3 +92,10 @@ export SLACK_WEBHOOK=https://hooks.slack.com/services/...
 | `03_cumulative_weather.py` | 누적 강수·풍속 피처 분석 |
 | `04_accident_type_sensitivity.py` | 사고유형별 날씨 민감도 (z-score) |
 | `05_summary_insights.md` | 데이터 품질 진단 및 모델 설계 권고 |
+
+## 모델 성능
+모델 성능 (val 2025년 6,196건):
+
+- 중대재해 PR-AUC 0.078, ROC 0.66, Top5% Lift 3.25x
+- 고령자피해 PR-AUC 0.43
+- 외국인피해 PR-AUC 0.30, ROC 0.72
